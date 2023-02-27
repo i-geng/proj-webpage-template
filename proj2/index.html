@@ -1,7 +1,531 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    background-color: white;
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+  kbd {
+    color: #121212;
+  }
+</style>
+
+<title>CS 184 Mesh Edit</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
+<h1 align="middle">Project 2: Mesh Edit</h1>
+<h2 align="middle">Irene Geng | i-geng</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>
+    In this project, I learned about Bezier curves and surfaces and how they can be calculated. I also
+    learned about and implemented simple mesh operations--edge flips and edge flips--and used these operations
+    to upsample meshes with loop subdivision.
+</p>
+<br>
+
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
+
+
+<p>
+    de Casteljau’s algorithm is a recursive method for evaluating Bezier curves. Given \(t\), a parameter
+    that varies from \(0\) to \(1\), and \(n\) control points, one iteration of de Casteljau’s algorithm will
+    calculate the next \(n - 1\) intermediate control points by using linear interpolation between every
+    pair of consecutive control points. I wrote a helper function called <i>BezierCurve::lerp()</i> that
+    takes in two Vector2D points, \(p_{0}\) and \(p_{1}\), and a value of \(t\) and outputs the weighted average
+    \((1 - t) * p_{0} + t * p_{1}\). I call <i>lerp()</i> repeatedly in <i>BezierCurve::evaluateStep()</i> between every two
+    consecutive control points and append the interpolated point to a list of Vector2D elements.
+</p>
+<br>
+
+<b>
+  Below are screenshots of each level of evaluation, from the original control points (Level 0) down to the
+  final evaluated point (Level 5) and the final Bezier curve.
+</b>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="./images/part1_1.png" align="middle" width="500px"/>
+        <figcaption>Level 0</figcaption>
+      </td>
+      <td>
+        <img src="./images/part1_2.png" align="middle" width="500px"/>
+        <figcaption>Level 1</figcaption>
+      </td>
+    </tr>
+
+    <tr align="center">
+      <td>
+        <img src="./images/part1_3.png" align="middle" width="500px"/>
+        <figcaption>Level 2</figcaption>
+      </td>
+      <td>
+        <img src="./images/part1_4.png" align="middle" width="500px"/>
+        <figcaption>Level 3</figcaption>
+      </td>
+    </tr>
+
+    <tr align="center">
+      <td>
+        <img src="./images/part1_5.png" align="middle" width="500px"/>
+        <figcaption>Level 4</figcaption>
+      </td>
+    <td>
+        <img src="./images/part1_6.png" align="middle" width="500px"/>
+        <figcaption>Level 5</figcaption>
+    </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+    <img src="./images/part1_7.png" align="middle" width="800px">
+    <figcaption>Full Bezier curve</figcaption>
+</div>
+<br>
+
+<b>
+  Here is a slightly different Bezier curve after moving the original control points around and modifying the
+    parameter \(t\) via mouse scrolling.
+</b>
+    <div align="middle">
+        <img src="./images/part1_8.png" align="middle" width="800px">
+    </div>
+<br>
+
+
+<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+
+<p>
+    Given an $n \times n$ grid of control points, we can use the separable application of
+    de Casteljau’s algorithm along the two different axes to evaluate the points of a
+    Bezier surface. For a particular $u$ and $v$, we first call <i>BezierPatch::evaluate1D()</i>
+    on each row of the control point grid to find the $n$ Bezier points corresponding to $u$.
+    We then use these $n$ points as new control points and call <i>evalute1D()</i> to find the Bezier
+    surface point corresponding to $(u, v)$.
+</p>
+<br>
+
+<p>
+    Below is a screenshot of bez/teapot.bez evaluated by my implementation.
+</p>
+
+    <div align="middle">
+        <img src="./images/part2_teapot.png" align="middle" width="800px">
+    </div>
+
+<br>
+
+
+<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
+
+<p>
+    In <i>Vertex::normal()</i>, I begin by finding the first neighboring vertex that
+    the given vertex’s half-edge points towards. I add the geometric positions
+    of the starting vertex and the neighboring vertex to a list of vertices.
+    Then, I iterate through the rest of the neighboring vertices in a do-while
+    loop by looking at the source vertices of the twin half-edges that point towards
+    the starting vertex. Given the geometric coordinates of three vertices that make
+    up a neighboring face, I find the area-weighted normal vector of that face by
+    calling a helper function <i>Vertex::faceAreaWeightedNormal()</i> to calculate the
+    normal vector and area of the face using cross products. I add up the
+    area-weighted normal vectors of all the surrounding faces and then normalize the final vector.
+</p>
+<br>
+<p>
+    Figure 3.1 shows a screenshot of dae/teapot.dae with default flat shading.
+    Figure 3.2 shows a screenshot with Phong shading, using vertex normals.
+</p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part3_flat.png" align="middle" width="500px"/>
+                    <figcaption>Figure 3.1</figcaption>
+                </td>
+                <td>
+                    <img src="./images/part3_phong.png" align="middle" width="500px"/>
+                    <figcaption>Figure 3.2</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<br>
+
+
+<h3 align="middle">Part 4: Edge Flip</h3>
+
+<p>
+    Following the implementation tips, I first identified all elements in the original
+    mesh of a pair of triangles: $6$ half-edges, $2$ faces, $5$ edges, and $4$ vertices.
+    If either of the neighboring faces are boundary faces, I immediately return the
+    given edge. Otherwise, I set the half-edges of each vertex, edge, and face in the
+    modified mesh, even if they have not changed. To access the protected
+    member <i>_halfedge</i> in each of these half-edge elements, I created new helper
+    functions called <i>Vertex::vertexSetHalfedge()</i>, <i>Edge::edgeSetHalfedge()</i>,
+    and <i>Face::faceSetHalfEdge()</i>.
+    Finally, I set all the neighbors of each of the $6$ half-edges. Finally, I return the new
+    flipped edge by accessing the <i>_edge</i> member of one of its two half-edges.
+
+    No eventful debugging journey.
+
+</p>
+<br>
+
+    <p>
+        Figure 4.1 shows the teapot before any edge flips. Figure 4.2 shows the teapot
+        after several edge flips in different areas of the mesh.
+    </p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part4_before.png" align="middle" width="500px"/>
+                    <figcaption>Figure 4.1</figcaption>
+                </td>
+                <td>
+                    <img src="./images/part4_after.png" align="middle" width="500px"/>
+                    <figcaption>Figure 4.2</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+
+<br>
+
+
+<h3 align="middle">Part 5: Edge Split</h3>
+
+<p>
+    As suggested by the implementation tips, I first list out all the half-edges,
+    vertices, edges, and faces that are present in the original mesh of a pair of
+    triangles. If either of the neighboring faces are boundary faces, I call
+    my function <i>HalfedgeMesh::splitBoundaryEdge()</i> to handle the edge split.
+    During any type of edge split, I never delete any existing mesh elements.
+    To split a regular, non-boundary edge, I reassign pointers of the original
+    elements if necessary, and create $1$ new vertex called $M$, $6$ new half-edges,
+    $3$ new edges, and $2$ new faces. Then, I set the half-edges of each vertex, edge,
+    and face in the new mesh. Finally, I set all the neighbors of each half-edge in
+    the new mesh. At the end of <i>HalfedgeMesh::splitEdge()</i>, I return the new vertex $M$.
+</p>
+
+<p>
+    In <i>HalfedgeMesh::splitBoundaryEdge()</i>, I implemented support for splitting boundary
+    edges. As before, I list out the existing elements in the original mesh, including a
+    pointer to the virtual boundary face. Then, to perform the edge split operation, I
+    create $1$ new vertex called $M$, $4$ new half-edges (one of which is a boundary half-edge),
+    $2$ new edges (one of which is a boundary edge), and $1$ new face. I do not divide the
+    virtual boundary face or create any new virtual boundary faces. Then, I set the
+    half-edges of each element and set the neighbors of each half-edge in the new mesh.
+    However, ordering matters when setting the neighbors of the two boundary half-edges,
+    since I need to access the next boundary half-edge before “losing” the pointer during reassignment.
+
+    No eventful debugging journey.
+
+</p>
+<br>
+
+    <p>
+        Figure 5.1 shows the teapot before any edge splits. Figure 5.2 shows the teapot
+        after several edge splits in different areas of the mesh.
+    </p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part5_teapot_before.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.1</figcaption>
+                </td>
+                <td>
+                    <img src="./images/part5_after_edgesplit.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.2</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<br>
+
+    <p>
+        Figure 5.3 shows the teapot before any operations. Figure 5.4 shows the teapot
+        after several edge splits and edge flips in different areas of the mesh.
+    </p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part5_teapot_before.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.3</figcaption>
+                </td>
+                <td>
+                    <img src="./images/part5_after_edgesplit_edgeflip.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.4</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+<br>
+
+    <p>
+        Figure 5.5 shows the dae/beetle.dae before any edge splits. Figure 5.6 shows the beetle
+        after several split operations on boundary edges around the headlight area.
+    </p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part5_beetle_before.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.5</figcaption>
+                </td>
+                <td>
+                    <img src="./images/part5_beetle_after.png" align="middle" width="500px"/>
+                    <figcaption>Figure 5.6</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+<br>
+
+
+<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
+
+<p>
+    First, I iterate over all vertices in the original mesh and calculate each
+    vertex’s updated position using a helper function called
+    <i>MeshResampler::updateOldVertex()</i>. I store the new position in the
+    field <i>Vertex::newPosition</i> and set <i>Vertex::isNew</i> to <i>false</i>. Then, I
+    calculate the position of the new vertex associated with every edge in the
+    original mesh that will be added in the process of loop subdivision, using a
+    helper function called <i>MeshResampler::updateNewVertex()</i>. The position is
+    stored in <i>Edge::newPosition</i>. Then, I split each original edge; since new edges
+    are appended to the end of the list of edges, I determine the number of edges
+    in the original mesh and iterate through that number of edges so that I only split original edges.
+    Whenever I split
+    and edge and create a new vertex, I copy the new position into the vertex’s
+    <i>newPosition</i> field. After splitting edges, I iterate over all edges in the edited
+    mesh and flip any edge that connects an old vertex to a new vertex. Finally, I
+    copy over the new position of each vertex into its position field.
+
+</p>
+<br>
+
+<p>
+    After loop subdivision, sharp corners and edges in the original mesh become smoothed out.
+    The effect is more apparent if the original mesh is relatively low-poly.
+</p>
+
+    <p>
+        Figure 6.1 shows an icosahedron after loop subdivision.
+    </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_ico0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_ico1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_ico2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.1</figcaption>
+                <td>
+                    <img src="./images/part6_ico3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_ico4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p>
+        Figure 6.2 shows a torus after loop subdivision.
+    </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_torus0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_torus1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_torus2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.2</figcaption>
+                <td>
+                    <img src="./images/part6_torus3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_torus4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<br>
+
+    <p>
+        This smoothing effect can be reduced by pre-splitting some edges. Figure 6.3 shows a cube after loop division.
+        However, by adding more edges
+        to this cube (in Figure 6.4) so that each face is divided
+        into $8$ triangles, the original mesh has more polygons.
+        The sharp edges do not lose as much
+        clarity and the mesh remains more rectangular after several instances of loop subdivision.
+    </p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_sym_cube0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.3</figcaption>
+                <td>
+                    <img src="./images/part6_sym_cube3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_more_cube0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_more_cube1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_more_cube2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.4</figcaption>
+                <td>
+                    <img src="./images/part6_more_cube3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_more_cube4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <br>
+
+<p>
+    Figure 6.5 shows dae/cube.dae after several subdivisions. The mesh becomes asymmetrical with upsampling
+    because the topology of the original mesh is not symmetrical (each face is split along a single diagonal);
+    these asymmetries become more apparent when these edges are split during loop subdivision.
+    By splitting each face edge once, as in Figure 6.6, each face of the cube is divided into $4$ triangles. This
+    preprocessed mesh remains symmetrical with multiple loop divisions.
+</p>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_asym_cube0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_asym_cube1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_asym_cube2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.5</figcaption>
+                <td>
+                    <img src="./images/part6_asym_cube3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_asym_cube4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="./images/part6_sym_cube0.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube1.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube2.png" align="middle" width="200px"/>
+                </td>
+                <figcaption>Figure 6.6</figcaption>
+                <td>
+                    <img src="./images/part6_sym_cube3.png" align="middle" width="200px"/>
+                </td>
+                <td>
+                    <img src="./images/part6_sym_cube4.png" align="middle" width="200px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+<br>
+
+</div>
+</body>
 </html>
