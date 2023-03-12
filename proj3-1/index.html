@@ -44,7 +44,7 @@
 <h2 align="middle">Irene Geng | i-geng</h2>
 
 <!-- Add Website URL -->
-<h2 align="middle">Website URL: <a href="TODO">TODO</a></h2>
+<h2 align="middle">Website URL: <a href="https://i-geng.github.io/proj-webpage-template/proj3-1/index.html">TODO</a></h2>
 
 <br><br>
 
@@ -92,18 +92,18 @@ Show images with normal shading for a few small .dae files. -->
   camera’s position and the camera-to-world rotation matrix \(c2w\) to transform
   the ray's origin and direction to world-space. After normalizing the ray’s
   direction vector, I return a new ray with the world-space origin and direction,
-  with the minimum and maximum \(t\) values set to \(nClip\) and \(fClip\).
+  with the minimum and maximum \(t\) values set to <i>nClip</i> and <i>fClip</i>.
 
   <br><br>
 
   To raytrace a single pixel in the rendering pipeline in <i>PathTracer::raytrace_pixel()</i>,
-  I generate \(num_samples\) camera rays and use Monte Carlo estimation to
+  I generate <i>num_samples</i> camera rays and use Monte Carlo estimation to
   estimate the integral of radiance over the given pixel. To sample from a
-  uniform distribution over a unit square, I use the PathTracer’s \(gridSampler\);
+  uniform distribution over a unit square, I use the PathTracer’s <i>gridSampler</i>;
   then, I add the random sample to the bottom left corner of the pixel \((x, y)\) to get
   a random point inside the pixel. I generate the camera ray corresponding to
   this random point and add its radiance contribution to my Monte Carlo estimator.
-  After all \(num_samples\) samples, I update the pixel’s value in \(sampleBuffer\).
+  After all <i>num_samples</i> samples, I update the pixel’s value in <i>sampleBuffer</i>.
 
 </p>
 <br>
@@ -173,7 +173,7 @@ Compare rendering times on a few scenes with moderately complex geometries with 
   For my BVH construction algorithm in <i>BVHAccel::construct_bvh()</i>,
   I first compute the bounding box of the given list of primitives and
   initialize a BVHNode with the bounding box. If the number of objects
-  in the node is less than or equal to the \(max_leaf_size\), the node is a leaf
+  in the node is less than or equal to the <i>max_leaf_size</i>, the node is a leaf
   and I return it. Otherwise, I recursively build the left and right children.
   <br><br>
   The heuristic I use for the splitting point is the average of centroids along the
@@ -256,7 +256,7 @@ Compare the results between uniform hemisphere sampling and lighting sampling in
   Walk through both implementations of the direct lighting function.
 </h3>
 <p>
-  For uniform hemisphere lighting, I take \(num_samples\) number of
+  For uniform hemisphere lighting, I take <i>num_samples</i> number of
   samples (equal to the number of lights times the number of samples per area light)
   over the unit hemisphere. Then, I trace a ray from point \(p\)
   in the sampled direction and check if this new ray intersects
